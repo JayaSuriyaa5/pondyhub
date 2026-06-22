@@ -1,0 +1,38 @@
+# Development override — adds source-code mounting and runs the dev
+# server (tsx server.ts under NODE_ENV=development, which Next.js uses to
+# enable hot reload / fast refresh) instead of the production build.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# This intentionally does NOT replace docker-compose.yml; it's merged on
+# top of it, overriding just the `app` service's build target, command,
+# and volumes while still reusing the same `db` service and network.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder # stop at the builder stage; it still has full
+                       # devDependencies and source, unlike the slimmer
+                       # final `runner` stage
+    command: ["npm", "run", "dev"]
+    environment:
+      NODE_ENV: development
+    volumes:
+      # Mount source so file edits on the host are picked up without
+      # rebuilding the image. node_modules and .next are excluded from
+      # the mount (via the anonymous volumes below) so the container's
+      # own installed/built artifacts aren't shadowed by the host's
+      # (which may not exist at all if you've never run `npm install`
+      # locally, or may be for a different OS/arch).
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./public:/app/public
+      - ./server.ts:/app/server.ts
+      - ./next.config.ts:/app/next.config.ts
+      - ./tailwind.config.ts:/app/tailwind.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+      - /app/.next

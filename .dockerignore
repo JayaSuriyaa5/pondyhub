@@ -1,0 +1,25 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log*
+
+# env files (real secrets must never be baked into the image; they're
+# injected at container runtime via docker-compose's env_file/environment)
+.env
+.env.local
+.env*.local
+.env.production
+
+# editor/OS cruft
+.vscode
+.idea
+.DS_Store
+
+# docs not needed at runtime
+README.md
+*.md
+
+# local-only artifacts
+prisma/dev.db
+coverage
