@@ -1,4 +1,4 @@
-import Image from "next/image";
+ import Image from "next/image";
 import clsx from "clsx";
 
 interface AvatarProps {
@@ -48,6 +48,7 @@ export function Avatar({ src, name, size = "md", className }: AvatarProps) {
         alt={name}
         width={px}
         height={px}
+        unoptimized
         className={clsx("rounded-full object-cover", classes, className)}
       />
     );
