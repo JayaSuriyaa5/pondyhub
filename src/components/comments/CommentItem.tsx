@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { VoteButtons } from "@/components/votes/VoteButtons";
 import { CommentForm } from "@/components/comments/CommentForm";
+import { ReportButton } from "@/components/reports/ReportButton";
 import { formatRelativeTime } from "@/lib/formatTime";
 import type { CommentDTO } from "@/types";
 
@@ -173,6 +174,7 @@ export function CommentItem({
                   >
                     Reply
                   </button>
+                  {!isOwner && <ReportButton targetType="comment" targetId={comment.id} variant="link" />}
                   {isOwner && (
                     <button
                       onClick={() => setIsEditing(true)}

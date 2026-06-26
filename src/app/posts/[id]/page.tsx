@@ -11,6 +11,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { CommentList } from "@/components/comments/CommentList";
+import { ReportButton } from "@/components/reports/ReportButton";
 import { formatRelativeTime, formatFullDate } from "@/lib/formatTime";
 
 interface PostPageProps {
@@ -101,17 +102,21 @@ export default async function PostPage({ params }: PostPageProps) {
               <span className="font-medium">{authorName}</span>
             </Link>
 
-            {(isOwner || canModerate) && (
-              <div className="flex gap-2">
-                {isOwner && (
-                  <Link href={`/posts/${post.id}/edit`}>
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+  {!isOwner && <ReportButton targetType="post" targetId={post.id} variant="link" />}
+
+  {(isOwner || canModerate) && (
+    <div className="flex gap-2">
+      {isOwner && (
+        <Link href={`/posts/${post.id}/edit`}>
+          <Button variant="outline" size="sm">
+            Edit
+          </Button>
+        </Link>
+      )}
+    </div>
+  )}
+</div>
           </div>
 
           <div

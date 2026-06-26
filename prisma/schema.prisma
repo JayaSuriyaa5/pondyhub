@@ -27,10 +27,24 @@ enum VoteValue {
 }
 
 enum NotificationType {
-  COMMENT_REPLY     // someone replied to your comment
-  POST_COMMENT      // someone commented on your post
-  MENTION           // someone @mentioned you (reserved for future use)
+  COMMENT_REPLY // someone replied to your comment
+  POST_COMMENT // someone commented on your post
+  MENTION // someone @mentioned you (reserved for future use)
   POST_VOTE_MILESTONE // reserved for future use (e.g. "your post hit 100 upvotes")
+}
+
+enum ReportReason {
+  SPAM
+  SCAM_FRAUD
+  HARASSMENT
+  FAKE_INFORMATION
+  NSFW
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
 }
 
 // ----------------------------------------------------------------------------
@@ -38,23 +52,24 @@ enum NotificationType {
 // ----------------------------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  email        String   @unique
+  id           String  @id @default(cuid())
+  username     String  @unique
+  email        String  @unique
   passwordHash String
   displayName  String?
-  bio          String?  @db.Text
+  bio          String? @db.Text
   avatarUrl    String?
-  role         Role     @default(USER)
+  role         Role    @default(USER)
 
   isBanned  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  posts       Post[]
-  comments    Comment[]
-  postVotes   PostVote[]
+  posts        Post[]
+  comments     Comment[]
+  postVotes    PostVote[]
   commentVotes CommentVote[]
+  reportsFiled Report[]      @relation("ReportsFiled")
 
   // Notifications received by this user (e.g. "someone replied to your
   // comment"). `actorId` on Notification tracks who triggered it
@@ -89,24 +104,25 @@ model Category {
 // ----------------------------------------------------------------------------
 
 model Post {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   title     String
-  content   String   @db.Text
-  published Boolean  @default(true)
+  content   String  @db.Text
+  published Boolean @default(true)
 
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   comments Comment[]
   votes    PostVote[]
+  reports  Report[]
 
   // Denormalized score for fast sorting (kept in sync on every vote write)
-  score     Int      @default(0)
-  upvotes   Int      @default(0)
-  downvotes Int      @default(0)
+  score     Int @default(0)
+  upvotes   Int @default(0)
+  downvotes Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -137,7 +153,8 @@ model Comment {
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies  Comment[] @relation("CommentReplies")
 
-  votes CommentVote[]
+  votes   CommentVote[]
+  reports Report[]
 
   score     Int @default(0)
   upvotes   Int @default(0)
@@ -157,8 +174,8 @@ model Comment {
 // ----------------------------------------------------------------------------
 
 model PostVote {
-  id     String    @id @default(cuid())
-  value  VoteValue
+  id    String    @id @default(cuid())
+  value VoteValue
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -192,6 +209,36 @@ model CommentVote {
   @@map("comment_votes")
 }
 
+model Report {
+  id     String       @id @default(cuid())
+  reason ReportReason
+  detail String?      @db.Text
+  status ReportStatus @default(PENDING)
+
+  reporterId String
+  reporter   User   @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  resolvedById       String?
+  resolvedByUsername String?
+  resolvedAt         DateTime?
+  resolutionAction   String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([reporterId, postId])
+  @@unique([reporterId, commentId])
+  @@index([postId])
+  @@index([commentId])
+  @@index([status])
+  @@map("reports")
+}
+
 // ----------------------------------------------------------------------------
 // Notification
 // ----------------------------------------------------------------------------
@@ -201,7 +248,7 @@ model CommentVote {
 // when a notification-worthy event happens (e.g. a reply is posted).
 
 model Notification {
-  id   String            @id @default(cuid())
+  id   String           @id @default(cuid())
   type NotificationType
 
   // Who receives this notification.
@@ -210,17 +257,17 @@ model Notification {
 
   // Who triggered it (nullable so the row survives if the actor account
   // is later deleted — onDelete: SetNull rather than Cascade).
-  actorId String?
+  actorId       String?
   actorUsername String // denormalized snapshot, so the notification text
-                        // still reads correctly even if actorId becomes null
+  // still reads correctly even if actorId becomes null
 
   // What it's about — a post and/or comment, depending on `type`. Both
   // nullable since not every notification type involves both.
   postId    String?
   commentId String?
 
-  message String // short human-readable summary, e.g. "replied to your comment"
-  read    Boolean  @default(false)
+  message   String // short human-readable summary, e.g. "replied to your comment"
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([recipientId, read])

@@ -102,3 +102,34 @@ export const voteSchema = z.object({
   value: z.enum(["UP", "DOWN", "NONE"]), // NONE = retract vote
 });
 export type VoteInput = z.infer<typeof voteSchema>;
+// ----------------------------------------------------------------------------
+// Reporting
+// ----------------------------------------------------------------------------
+
+export const reportReasonSchema = z.enum([
+  "SPAM",
+  "SCAM_FRAUD",
+  "HARASSMENT",
+  "FAKE_INFORMATION",
+  "NSFW",
+  "OTHER",
+]);
+
+export const createReportSchema = z
+  .object({
+    reason: reportReasonSchema,
+    detail: z.string().max(500).optional(),
+    postId: z.string().optional(),
+    commentId: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.postId) !== Boolean(data.commentId), {
+    message: "Provide exactly one of postId or commentId.",
+  });
+
+export type CreateReportInput = z.infer<typeof createReportSchema>;
+
+export const resolveReportSchema = z.object({
+  action: z.enum(["DISMISS", "DELETE_CONTENT", "BAN_USER"]),
+});
+
+export type ResolveReportInput = z.infer<typeof resolveReportSchema>;

@@ -1,5 +1,9 @@
-import type { Role, VoteValue } from "@prisma/client";
-
+import type {
+  Role,
+  VoteValue,
+  ReportReason,
+  ReportStatus,
+} from "@prisma/client";
 // ----------------------------------------------------------------------------
 // Auth
 // ----------------------------------------------------------------------------
@@ -164,3 +168,25 @@ export interface NotificationPayload {
 }
 
 export type PostSort = "new" | "top" | "hot";
+
+export interface ReportDTO {
+  id: string;
+  reason: ReportReason;
+  detail: string | null;
+  status: ReportStatus;
+  createdAt: string;
+}
+
+export interface AdminReportGroupDTO {
+  targetType: "post" | "comment";
+  targetId: string;
+  contentPreview: string;
+  contentHidden: boolean;
+  postIdForComment?: string;
+  author: AuthorDTO;
+  reportCount: number;
+  reporterIds: string[];
+  reasons: ReportReason[];
+  status: ReportStatus;
+  latestReportAt: string;
+}
