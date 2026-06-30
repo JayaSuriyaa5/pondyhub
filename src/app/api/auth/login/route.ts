@@ -51,6 +51,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Email verification gate. Only enforced when explicitly enabled via
+    // env var, so existing/local/CI environments are unaffected unless
+    // this is deliberately turned on. Placed after the password check
+    // (not before) -- by this point the caller has already proven they
+    // know the account's credentials, so a specific "unverified" message
+    // here does not create a new account-enumeration vector the way it
+    // would if returned before password verification.
+    if (process.env.AUTH_REQUIRE_EMAIL_VERIFICATION === "true" && user.emailVerifiedAt === null) {
+      return apiError(
+        "Please verify your email address before logging in.",
+        403,
+        { code: "UNVERIFIED_EMAIL" }
+      );
+    }
+
     await setAuthCookies(user);
 
     return apiSuccess({ user: toAuthUser(user) });

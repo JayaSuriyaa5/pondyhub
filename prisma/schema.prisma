@@ -1,7 +1,3 @@
-// ============================================================================
-// Prisma schema — Forum MVP
-// ============================================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,9 +7,200 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ----------------------------------------------------------------------------
-// Enums
-// ----------------------------------------------------------------------------
+model User {
+  id              String           @id @default(cuid())
+  username        String           @unique
+  email           String           @unique
+  passwordHash    String
+  displayName     String?
+  bio             String?
+  avatarUrl       String?
+  role            Role             @default(USER)
+  isBanned        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  emailVerifiedAt DateTime?
+  authVersion     Int              @default(0)
+  account_tokens  account_tokens[]
+  auth_sessions   auth_sessions[]
+  commentVotes    CommentVote[]
+  comments        Comment[]
+  notifications   Notification[]   @relation("NotificationRecipient")
+  postVotes       PostVote[]
+  posts           Post[]
+  reportsFiled    Report[]         @relation("ReportsFiled")
+
+  @@index([username])
+  @@index([email])
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  posts       Post[]
+
+  @@index([slug])
+  @@map("categories")
+}
+
+model Post {
+  id         String     @id @default(cuid())
+  title      String
+  content    String
+  published  Boolean    @default(true)
+  authorId   String
+  categoryId String
+  score      Int        @default(0)
+  upvotes    Int        @default(0)
+  downvotes  Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  comments   Comment[]
+  votes      PostVote[]
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id])
+  reports    Report[]
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([score])
+  @@map("posts")
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  content   String
+  deleted   Boolean       @default(false)
+  authorId  String
+  postId    String
+  parentId  String?
+  score     Int           @default(0)
+  upvotes   Int           @default(0)
+  downvotes Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  votes     CommentVote[]
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]     @relation("CommentReplies")
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reports   Report[]
+
+  @@index([postId])
+  @@index([parentId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+model PostVote {
+  id        String    @id @default(cuid())
+  value     VoteValue
+  userId    String
+  postId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@map("post_votes")
+}
+
+model CommentVote {
+  id        String    @id @default(cuid())
+  value     VoteValue
+  userId    String
+  commentId String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  comment   Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+  @@map("comment_votes")
+}
+
+model Report {
+  id                 String       @id @default(cuid())
+  reason             ReportReason
+  detail             String?
+  status             ReportStatus @default(PENDING)
+  reporterId         String
+  postId             String?
+  commentId          String?
+  resolvedById       String?
+  resolvedByUsername String?
+  resolvedAt         DateTime?
+  resolutionAction   String?
+  createdAt          DateTime     @default(now())
+  comment            Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post               Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter           User         @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, postId])
+  @@unique([reporterId, commentId])
+  @@index([postId])
+  @@index([commentId])
+  @@index([status])
+  @@map("reports")
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  type          NotificationType
+  recipientId   String
+  actorId       String?
+  actorUsername String
+  postId        String?
+  commentId     String?
+  message       String
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  recipient     User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, read])
+  @@index([recipientId, createdAt])
+  @@map("notifications")
+}
+
+model account_tokens {
+  id        String           @id
+  type      AccountTokenType
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+  userId    String
+  users     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type, expiresAt])
+  @@index([userId, type, usedAt])
+}
+
+model auth_sessions {
+  id               String    @id
+  refreshTokenHash String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime  @default(now())
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime
+  userId           String
+  users            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
+}
 
 enum Role {
   USER
@@ -27,10 +214,10 @@ enum VoteValue {
 }
 
 enum NotificationType {
-  COMMENT_REPLY // someone replied to your comment
-  POST_COMMENT // someone commented on your post
-  MENTION // someone @mentioned you (reserved for future use)
-  POST_VOTE_MILESTONE // reserved for future use (e.g. "your post hit 100 upvotes")
+  COMMENT_REPLY
+  POST_COMMENT
+  MENTION
+  POST_VOTE_MILESTONE
 }
 
 enum ReportReason {
@@ -47,230 +234,7 @@ enum ReportStatus {
   RESOLVED
 }
 
-// ----------------------------------------------------------------------------
-// User
-// ----------------------------------------------------------------------------
-
-model User {
-  id           String  @id @default(cuid())
-  username     String  @unique
-  email        String  @unique
-  passwordHash String
-  displayName  String?
-  bio          String? @db.Text
-  avatarUrl    String?
-  role         Role    @default(USER)
-
-  isBanned  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  posts        Post[]
-  comments     Comment[]
-  postVotes    PostVote[]
-  commentVotes CommentVote[]
-  reportsFiled Report[]      @relation("ReportsFiled")
-
-  // Notifications received by this user (e.g. "someone replied to your
-  // comment"). `actorId` on Notification tracks who triggered it
-  // separately, so this relation is one-directional (recipient only).
-  notifications Notification[] @relation("NotificationRecipient")
-
-  @@index([username])
-  @@index([email])
-  @@map("users")
-}
-
-// ----------------------------------------------------------------------------
-// Category
-// ----------------------------------------------------------------------------
-
-model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
-  description String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  posts Post[]
-
-  @@index([slug])
-  @@map("categories")
-}
-
-// ----------------------------------------------------------------------------
-// Post
-// ----------------------------------------------------------------------------
-
-model Post {
-  id        String  @id @default(cuid())
-  title     String
-  content   String  @db.Text
-  published Boolean @default(true)
-
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-
-  comments Comment[]
-  votes    PostVote[]
-  reports  Report[]
-
-  // Denormalized score for fast sorting (kept in sync on every vote write)
-  score     Int @default(0)
-  upvotes   Int @default(0)
-  downvotes Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([categoryId])
-  @@index([authorId])
-  @@index([createdAt])
-  @@index([score])
-  @@map("posts")
-}
-
-// ----------------------------------------------------------------------------
-// Comment (nested via self-relation: parentId)
-// ----------------------------------------------------------------------------
-
-model Comment {
-  id      String  @id @default(cuid())
-  content String  @db.Text
-  deleted Boolean @default(false)
-
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  postId String
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  parentId String?
-  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies  Comment[] @relation("CommentReplies")
-
-  votes   CommentVote[]
-  reports Report[]
-
-  score     Int @default(0)
-  upvotes   Int @default(0)
-  downvotes Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([postId])
-  @@index([parentId])
-  @@index([authorId])
-  @@map("comments")
-}
-
-// ----------------------------------------------------------------------------
-// Votes (one vote per user per post / per comment)
-// ----------------------------------------------------------------------------
-
-model PostVote {
-  id    String    @id @default(cuid())
-  value VoteValue
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  postId String
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, postId])
-  @@index([postId])
-  @@map("post_votes")
-}
-
-model CommentVote {
-  id    String    @id @default(cuid())
-  value VoteValue
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  commentId String
-  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, commentId])
-  @@index([commentId])
-  @@map("comment_votes")
-}
-
-model Report {
-  id     String       @id @default(cuid())
-  reason ReportReason
-  detail String?      @db.Text
-  status ReportStatus @default(PENDING)
-
-  reporterId String
-  reporter   User   @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
-
-  postId String?
-  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  commentId String?
-  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
-
-  resolvedById       String?
-  resolvedByUsername String?
-  resolvedAt         DateTime?
-  resolutionAction   String?
-
-  createdAt DateTime @default(now())
-
-  @@unique([reporterId, postId])
-  @@unique([reporterId, commentId])
-  @@index([postId])
-  @@index([commentId])
-  @@index([status])
-  @@map("reports")
-}
-
-// ----------------------------------------------------------------------------
-// Notification
-// ----------------------------------------------------------------------------
-// Persisted so notifications survive a page reload / appear in a "view all"
-// list, not just as an ephemeral toast pushed over the socket. The socket
-// emit (see src/lib/socket/emit.ts) and this DB row are written together
-// when a notification-worthy event happens (e.g. a reply is posted).
-
-model Notification {
-  id   String           @id @default(cuid())
-  type NotificationType
-
-  // Who receives this notification.
-  recipientId String
-  recipient   User   @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-
-  // Who triggered it (nullable so the row survives if the actor account
-  // is later deleted — onDelete: SetNull rather than Cascade).
-  actorId       String?
-  actorUsername String // denormalized snapshot, so the notification text
-  // still reads correctly even if actorId becomes null
-
-  // What it's about — a post and/or comment, depending on `type`. Both
-  // nullable since not every notification type involves both.
-  postId    String?
-  commentId String?
-
-  message   String // short human-readable summary, e.g. "replied to your comment"
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@index([recipientId, read])
-  @@index([recipientId, createdAt])
-  @@map("notifications")
+enum AccountTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
 }

@@ -17,24 +17,48 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [isUnverified, setIsUnverified] = useState(false);
+const [isResending, setIsResending] = useState(false);
+const [resendResult, setResendResult] = useState<"sent" | "error" | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
     setFieldErrors({});
+    setIsUnverified(false);
+setResendResult(null);
 
     const result = await login(identifier, password);
 
     if (!result.success) {
       setFormError(result.error || "Something went wrong. Please try again.");
       setFieldErrors(result.fieldErrors || {});
+      setIsUnverified(result.code === "UNVERIFIED_EMAIL");
       return;
     }
 
     const next = searchParams.get("next") || "/";
-    router.push(next);
-    router.refresh();
+window.location.href = next;
   }
+  async function handleResend() {
+  setIsResending(true);
+  setResendResult(null);
+
+  try {
+    const res = await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    });
+
+    const json: { success: boolean } = await res.json();
+    setResendResult(json.success ? "sent" : "error");
+  } catch {
+    setResendResult("error");
+  } finally {
+    setIsResending(false);
+  }
+}
 
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden px-4 py-12">
@@ -70,13 +94,44 @@ export default function LoginPage() {
               Log in to continue to {siteConfig.name}
             </p>
           </div>
-
           <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-            {formError && (
-              <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                {formError}
-              </div>
-            )}
+
+          {formError && !isUnverified && (
+  <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+    {formError}
+  </div>
+)}
+
+{isUnverified && (
+  <div className="rounded-lg bg-amber-50 px-3 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+    <p>{formError}</p>
+
+    {resendResult === "sent" && (
+      <p className="mt-2 font-medium">
+        Verification email sent — check your inbox.
+      </p>
+    )}
+
+    {resendResult === "error" && (
+      <p className="mt-2 font-medium">
+        Couldn't resend the email right now. Please try again shortly.
+      </p>
+    )}
+
+    {resendResult !== "sent" && (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-3"
+        isLoading={isResending}
+        onClick={handleResend}
+      >
+        Resend verification email
+      </Button>
+    )}
+  </div>
+)}
 
             <Input
               label="Email or username"

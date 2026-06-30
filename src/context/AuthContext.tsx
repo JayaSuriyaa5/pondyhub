@@ -14,7 +14,10 @@ import type { AuthUser, ApiResponse } from "@/types";
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string; fieldErrors?: Record<string, string[]> }>;
+ login: (
+  identifier: string,
+  password: string
+) => Promise<{ success: boolean; error?: string; code?: string; fieldErrors?: Record<string, string[]> }>;
   register: (
     username: string,
     email: string,
@@ -69,10 +72,14 @@ export function AuthProvider({
         const json: ApiResponse<{ user: AuthUser }> = await res.json();
 
         if (!json.success) {
-          return { success: false, error: json.error.message, fieldErrors: json.error.fieldErrors };
+         return {
+  success: false,
+  error: json.error.message,
+  code: json.error.code,
+  fieldErrors: json.error.fieldErrors,
+};
         }
 
-        setUser(json.data.user);
         return { success: true };
       } catch {
         return { success: false, error: "Network error. Please try again." };
@@ -98,7 +105,7 @@ export function AuthProvider({
           return { success: false, error: json.error.message, fieldErrors: json.error.fieldErrors };
         }
 
-        setUser(json.data.user);
+        
         return { success: true };
       } catch {
         return { success: false, error: "Network error. Please try again." };

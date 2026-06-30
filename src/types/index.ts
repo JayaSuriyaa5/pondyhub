@@ -28,6 +28,7 @@ export interface AuthUser {
   bio: string | null;
   role: Role;
   isBanned: boolean;
+  emailVerified: boolean;
   createdAt: string;
 }
 

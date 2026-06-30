@@ -36,6 +36,22 @@ export const updateProfileSchema = z.object({
   bio: z.string().max(500).optional().nullable(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+// ----------------------------------------------------------------------------
+// Email verification
+// ----------------------------------------------------------------------------
+// Deliberately mirrors loginSchema's shape (identifier + password)
+// rather than a bare email field. Resend-verification is keyed off the
+// same credentials a login attempt would use, so the route can confirm
+// the requester actually knows the account's password before re-issuing
+// a token -- this avoids creating a new email-enumeration oracle, since
+// the action only fires after a successful password check, not as a
+// standalone public "does this email exist" endpoint.
+
+export const resendVerificationSchema = z.object({
+  identifier: z.string().min(1, "Email or username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 
 // ----------------------------------------------------------------------------
 // Category

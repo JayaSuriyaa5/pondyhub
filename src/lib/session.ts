@@ -59,8 +59,9 @@ export function toAuthUser(user: User): AuthUser {
     avatarUrl: user.avatarUrl,
     bio: user.bio,
     role: user.role,
-    isBanned: user.isBanned,
-    createdAt: user.createdAt.toISOString(),
+isBanned: user.isBanned,
+emailVerified: user.emailVerifiedAt !== null,
+createdAt: user.createdAt.toISOString(),
   };
 }
 
